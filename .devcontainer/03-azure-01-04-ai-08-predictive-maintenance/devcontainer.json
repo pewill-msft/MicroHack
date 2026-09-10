@@ -30,11 +30,10 @@
             "installUsingApt": true
         }
     },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/microhack,type=bind,consistency=cached",
-  "workspaceFolder": "/workspaces/microhack/03-Azure/01-04-AI/08_Predictive_Maintenance",  
-  "postAttachCommand": "bash /workspaces/microhack/.devcontainer/welcome.sh",
-  "remoteUser": "vscode",
-  //"postCreateCommand": "pip3 install --upgrade pip && pip3 install --user -r requirements.txt && bash /workspaces/microhack/.devcontainer/03-azure-01-04-ai-08-predictive-maintenance/setup-dotnet.sh",
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}/03-Azure/01-04-AI/08_Predictive_Maintenance",
+    "postAttachCommand": "bash /workspaces/${localWorkspaceFolderBasename}/.devcontainer/welcome.sh",
+    "remoteUser": "vscode",
+   // "postCreateCommand": "pip3 install --upgrade pip && pip3 install --user -r requirements.txt && bash /workspaces/${localWorkspaceFolderBasename}/.devcontainer/03-azure-01-04-ai-08-predictive-maintenance/setup-dotnet.sh",
     "customizations": {
         "vscode": {
             "extensions": [
