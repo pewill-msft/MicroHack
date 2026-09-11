@@ -100,7 +100,7 @@ WorkOrders
 ```bash
 az storage blob list \
   --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
-  --container-name kb-wiki \
+  --container-name machine-wiki \
   --query "length(@)" --output tsv
 ```
 
@@ -108,14 +108,14 @@ Expected output: `5`
 
 ## Troubleshooting
 
-* **A Cosmos DB container is missing or empty, or `kb-wiki` has fewer than 5 blobs:** the automatic post-deployment seeding step may not have completed yet, or it targeted a different resource group. As a fallback, you can re-seed manually. Ask your coach whether this is expected for your lab, then, from the repository root:
+* **A Cosmos DB container is missing or empty, or `machine-wiki` blob container has fewer than 5 blobs:** the automatic post-deployment seeding step may not have completed yet, or it targeted a different resource group. As a fallback, you can re-seed manually. Ask your coach whether this is expected for your lab, then, from the repository root:
 
   ```bash
   # Re-upload the knowledge base wiki articles
   for f in data/kb-wiki/*.md; do
     az storage blob upload \
       --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
-      --container-name kb-wiki \
+      --container-name machine-wiki \
       --name "$(basename "$f")" \
       --file "$f" \
       --overwrite
@@ -123,6 +123,12 @@ Expected output: `5`
   ```
 
   Re-run the verification commands in Task 5 afterwards to confirm the fix.
+
+  If a Cosmos DB container is missing documents (not just the blob container), the fix is on the
+  provisioning side rather than something you can safely redo from inside the Codespace: ask your
+  coach to re-run the data-seeding portion of `labautomation/deploy-lab.ps1` for your resource
+  group. See [labautomation/README.md](../../labautomation/README.md#data-seeding) for what that
+  step does.
 * **`get-keys.sh` prints empty values for one or more settings:** confirm the deployment in your resource group finished successfully (**Deployments** blade in the Azure portal should show *Succeeded*), and that you passed the correct `--resource-group` name.
 * **`az login --use-device-code` succeeds but later commands return `AuthorizationFailed`:** confirm you're targeting the correct subscription with `az account show`; if it's wrong, run `az account set --subscription "<subscription-id>"`.
 
@@ -137,6 +143,6 @@ Expected output: `5`
 * [ ] `.env` file created by `labautomation/get-keys.sh` with no empty required values.
 * [ ] Environment variables exported into the current shell.
 * [ ] All 7 Cosmos DB containers listed for the `FactoryOpsDB` database.
-* [ ] `kb-wiki` blob container contains 5 markdown articles.
+* [ ] `machine-wiki` blob container contains 5 markdown articles.
 
 **Next:** [Challenge 2 walkthrough](../challenge-02/solution-02.md)

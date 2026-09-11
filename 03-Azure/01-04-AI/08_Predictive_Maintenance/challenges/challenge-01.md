@@ -129,7 +129,7 @@ You should see all seven containers listed in [Context and Background](#-context
 ```bash
 az storage blob list \
   --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
-  --container-name kb-wiki \
+  --container-name machine-wiki \
   --query "length(@)" --output tsv
 ```
 
@@ -143,7 +143,7 @@ Review the [solution architecture](../README.md#architecture) and identify which
 
 * **The Azure resource group is missing:** Confirm that you signed in with the assigned lab account and selected the assigned subscription in the Azure portal.
 * **`get-keys.sh` reports an authorization error:** Confirm that the Codespace is signed in with the assigned lab account, and that it can read deployment outputs and list keys for the Foundry, Cosmos DB, Storage, and Azure AI Search resources.
-* **A Cosmos DB container is missing or empty, or the `kb-wiki` container has fewer than 5 blobs:** See the [Challenge 1 walkthrough](../walkthrough/challenge-01/solution-01.md) for the fallback re-seed command.
+* **A Cosmos DB container is missing or empty, or the `machine-wiki` blob container has fewer than 5 blobs:** See the [Challenge 1 walkthrough](../walkthrough/challenge-01/solution-01.md) for the fallback re-seed command.
 * **The GitHub organization or repository is missing:** Sign out of GitHub, then sign in again through **Sign in with your identity provider** using the Hackbox credentials.
 * **The Codespace does not finish starting:** Review the creation log for the failing step, then rebuild the container or recreate the Codespace.
 

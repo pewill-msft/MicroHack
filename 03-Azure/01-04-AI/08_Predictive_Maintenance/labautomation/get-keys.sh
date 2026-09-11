@@ -31,9 +31,15 @@ if [ -z "$resourceGroupName" ]; then
     read resourceGroupName
 fi
 
-# Get resource group deployments, find deployments starting with 'Microsoft.Template' and sort them by timestamp
+# Get the most recent resource group deployment (works for both the platform's
+# pre-provisioned "mhh*"-prefixed deployments and a manual "az deployment group
+# create" deployment of labautomation/main.bicep).
 echo "Getting the deployments in '$resourceGroupName'..."
-deploymentName=$(az deployment group list --resource-group $resourceGroupName --query "[?contains(name, 'Microsoft.Template') || contains(name, 'azuredeploy') || contains(name, 'hack-deployment')].{name:name}[0].name" --output tsv)
+deploymentName=$(az deployment group list --resource-group $resourceGroupName --query "sort_by([?starts_with(name, 'mhh') || contains(name, 'main') || contains(name, 'azuredeploy') || contains(name, 'hack-deployment')], &properties.timestamp)[-1].name" --output tsv)
+if [ -z "$deploymentName" ]; then
+    # Fall back to the single most recent deployment of any name.
+    deploymentName=$(az deployment group list --resource-group $resourceGroupName --query "sort_by(@, &properties.timestamp)[-1].name" --output tsv)
+fi
 if [ $? -ne 0 ]; then
     echo "Error occurred while fetching deployments. Exiting..."
     exit 1
