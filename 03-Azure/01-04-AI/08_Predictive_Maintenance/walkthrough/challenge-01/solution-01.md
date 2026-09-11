@@ -79,7 +79,7 @@ Expected result: both print an `https://` URL, not an empty line.
 
 ```bash
 az cosmosdb sql container list \
-  --account-name "$COSMOS_NAME" \
+  --account-name "$COSMOS_ACCOUNT_NAME" \
   --resource-group "$RESOURCE_GROUP" \
   --database-name "FactoryOpsDB" \
   --query "[].id" --output tsv
