@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
 Deploys the lab resources scoped to a subscription or resource group, then
@@ -123,6 +124,7 @@ function Invoke-CosmosDocumentUpsert {
         [byte[]]$KeyBytes,
         [string]$Database,
         [string]$Collection,
+        [string]$PartitionKeyPath,
         [object]$Document
     )
 
@@ -141,33 +143,44 @@ function Invoke-CosmosDocumentUpsert {
     $uri = "$Endpoint$resourceLink/docs"
     $body = $Document | ConvertTo-Json -Depth 20 -Compress
 
+    # The Cosmos DB Gateway REST API requires the partition key value(s) to be
+    # supplied explicitly via x-ms-documentdb-partitionkey, even on create -
+    # it is not inferred from the request body. Single-level partition key
+    # paths only (matches this hack's containers, e.g. "/type" -> .type).
+    $partitionKeyPropertyName = $PartitionKeyPath.TrimStart('/')
+    $partitionKeyValue = $Document.$partitionKeyPropertyName
+    $partitionKeyHeader = ConvertTo-Json -InputObject @($partitionKeyValue) -Compress
+
     Invoke-RestMethod -Uri $uri -Method Post `
         -Headers @{
             "Authorization"                              = $authHeader
             "x-ms-date"                                   = $date
             "x-ms-version"                                = "2018-12-31"
             "x-ms-documentdb-is-upsert"                   = "true"
+            "x-ms-documentdb-partitionkey"                = $partitionKeyHeader
         } `
         -ContentType "application/json" `
         -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null
 }
 
-# Maps each Cosmos container to its seed data file at the hack root.
+# Maps each Cosmos container to its seed data file and partition key path at
+# the hack root. Partition key paths must match main.bicep's cosmosContainers.
 $dataMappings = [ordered]@{
-    "Machines"           = "machines.json"
-    "Thresholds"         = "thresholds.json"
-    "Telemetry"          = "telemetry-samples.json"
-    "KnowledgeBase"      = "knowledge-base.json"
-    "PartsInventory"     = "parts-inventory.json"
-    "Technicians"        = "technicians.json"
-    "WorkOrders"         = "work-orders.json"
-    "MaintenanceHistory" = "maintenance-history.json"
-    "MaintenanceWindows" = "maintenance-windows.json"
-    "Suppliers"          = "suppliers.json"
+    "Machines"           = @{ File = "machines.json"; PartitionKeyPath = "/type" }
+    "Thresholds"         = @{ File = "thresholds.json"; PartitionKeyPath = "/machineType" }
+    "Telemetry"          = @{ File = "telemetry-samples.json"; PartitionKeyPath = "/machineId" }
+    "KnowledgeBase"      = @{ File = "knowledge-base.json"; PartitionKeyPath = "/machineType" }
+    "PartsInventory"     = @{ File = "parts-inventory.json"; PartitionKeyPath = "/category" }
+    "Technicians"        = @{ File = "technicians.json"; PartitionKeyPath = "/department" }
+    "WorkOrders"         = @{ File = "work-orders.json"; PartitionKeyPath = "/status" }
+    "MaintenanceHistory" = @{ File = "maintenance-history.json"; PartitionKeyPath = "/machineId" }
+    "MaintenanceWindows" = @{ File = "maintenance-windows.json"; PartitionKeyPath = "/isAvailable" }
+    "Suppliers"          = @{ File = "suppliers.json"; PartitionKeyPath = "/category" }
 }
 
 foreach($container in $dataMappings.Keys) {
-    $dataFile = Join-Path $hackRoot "data/$($dataMappings[$container])"
+    $mapping = $dataMappings[$container]
+    $dataFile = Join-Path $hackRoot "data/$($mapping.File)"
     if(-not (Test-Path $dataFile)) {
         Write-Warning "Seed data file not found, skipping: $dataFile"
         continue
@@ -178,7 +191,8 @@ foreach($container in $dataMappings.Keys) {
     foreach($document in $documents) {
         try {
             Invoke-CosmosDocumentUpsert -Endpoint $cosmosEndpoint -KeyBytes $cosmosKeyBytes `
-                -Database $cosmosDatabaseName -Collection $container -Document $document
+                -Database $cosmosDatabaseName -Collection $container `
+                -PartitionKeyPath $mapping.PartitionKeyPath -Document $document
             $count++
         } catch {
             Write-Warning "Failed to upsert a document into '$container': $($_.Exception.Message)"

@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 # =============================================================================
 # LOCAL DEVELOPMENT / TESTING ONLY
 # =============================================================================
@@ -17,7 +18,10 @@ param(
     [string]$Location = "swedencentral",
 
     [Parameter()]
-    [string]$SubscriptionId = ""
+    [string]$SubscriptionId = "",
+
+    [Parameter()]
+    [hashtable]$Tag = @{}
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,12 +43,18 @@ if (-not $userObjectId) {
     $userObjectId = (az account show --query "user.name" -o tsv).Trim()
 }
 
+$script:additionalTags = $Tag
+
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "Testing deploy-lab.ps1 locally" -ForegroundColor Cyan
 Write-Host "Subscription:   $SubscriptionId" -ForegroundColor Cyan
 Write-Host "Resource Group: $ResourceGroupName" -ForegroundColor Cyan
 Write-Host "Location:       $Location" -ForegroundColor Cyan
 Write-Host "User Object ID: $userObjectId" -ForegroundColor Cyan
+if ($Tag.Count -gt 0) {
+    $tagSummary = ($Tag.Keys | ForEach-Object { "$_=$($Tag[$_])" }) -join ', '
+    Write-Host "Extra RG Tags:  $tagSummary" -ForegroundColor Cyan
+}
 Write-Host "==================================================" -ForegroundColor Cyan
 
 # 2. Mock Get-MhhStablehash if not provided by platform module
@@ -78,9 +88,22 @@ if (-not (Get-Command Invoke-MhhDeploymentWithRegionFallback -ErrorAction Silent
         )
         
         $chosenLocation = if ($PreferredLocations.Count -gt 0) { $PreferredLocations[0] } else { "swedencentral" }
-        
+
+        # Merge tags passed in by deploy-lab.ps1 (e.g. CostControl/SecurityControl)
+        # with any additional tags supplied to test-deploy.ps1 via -Tag, so local
+        # runs can add tags required by subscription policies (e.g. policy exemptions).
+        $mergedTags = @{}
+        foreach ($k in $Tag.Keys) { $mergedTags[$k] = $Tag[$k] }
+        foreach ($k in $script:additionalTags.Keys) { $mergedTags[$k] = $script:additionalTags[$k] }
+
         Write-Host "Creating/Ensuring Resource Group '$ResourceGroupName' in '$chosenLocation'..." -ForegroundColor Green
-        az group create --name $ResourceGroupName --location $chosenLocation --output none
+        if ($mergedTags.Count -gt 0) {
+            $tagArgs = $mergedTags.Keys | ForEach-Object { "$_=$($mergedTags[$_])" }
+            Write-Host "Applying tags: $($tagArgs -join ', ')" -ForegroundColor Green
+            az group create --name $ResourceGroupName --location $chosenLocation --tags $tagArgs --output none
+        } else {
+            az group create --name $ResourceGroupName --location $chosenLocation --output none
+        }
         
         # Build parameter arguments for az deployment
         $paramArgs = @()
@@ -125,11 +148,20 @@ $deployLabScript = Join-Path (Resolve-Path (Join-Path $scriptDir "..\labautomati
 
 Write-Host "Executing deploy-lab.ps1 at '$deployLabScript'..." -ForegroundColor Green
 
+# Append a synthetic second entry derived from -ResourceGroupName to the hash
+# input. Get-MhhStablehash hashes the whole array to compute globally-unique
+# resource names, but only $AllowedEntraUserIds[0] (the real user object ID) is
+# used for RBAC/portal access. This lets repeated local test runs target a new
+# resource group without colliding on already-provisioned globally-unique
+# resource names (storage account, AI Search, Cognitive Services subdomain)
+# left over from a previous test resource group.
+$testNamingSeed = "test-seed-$ResourceGroupName"
+
 & $deployLabScript `
     -DeploymentType "resourcegroup" `
     -SubscriptionId $SubscriptionId `
     -ResourceGroupName $ResourceGroupName `
     -PreferredLocation @($Location) `
-    -AllowedEntraUserIds @($userObjectId)
+    -AllowedEntraUserIds @($userObjectId, $testNamingSeed)
 
 Write-Host "`n✅ Local deployment & data seeding simulation completed!" -ForegroundColor Green

@@ -468,7 +468,10 @@ resource participantStorageBlobDataContributor 'Microsoft.Authorization/roleAssi
 var cosmosResourceAudience = 'https://${cosmosDbAccountName}.documents.azure.com'
 var cosmosDataPlaneUrl = 'https://${cosmosDbAccountName}.documents.azure.com/'
 
-func cosmosQueryAllPolicy(resourceAudience string, dataPlaneUrl string, collection string) string => '''
+// NOTE: Bicep triple-quoted (''') multi-line strings do NOT support ${...} string
+// interpolation - any ${...} placeholders below are emitted as literal text. The
+// placeholders are therefore substituted afterwards via nested replace() calls.
+func cosmosQueryAllPolicy(resourceAudience string, dataPlaneUrl string, collection string) string => replace(replace(replace('''
 <policies>
     <inbound>
         <base />
@@ -519,9 +522,9 @@ func cosmosQueryAllPolicy(resourceAudience string, dataPlaneUrl string, collecti
     <outbound><base /></outbound>
     <on-error><base /></on-error>
 </policies>
-'''
+''', '\${resourceAudience}', resourceAudience), '\${dataPlaneUrl}', dataPlaneUrl), '\${collection}', collection)
 
-func cosmosQueryByFieldPolicy(resourceAudience string, dataPlaneUrl string, collection string, paramName string, field string) string => '''
+func cosmosQueryByFieldPolicy(resourceAudience string, dataPlaneUrl string, collection string, paramName string, field string) string => replace(replace(replace(replace(replace('''
 <policies>
     <inbound>
         <base />
@@ -574,7 +577,7 @@ func cosmosQueryByFieldPolicy(resourceAudience string, dataPlaneUrl string, coll
     <outbound><base /></outbound>
     <on-error><base /></on-error>
 </policies>
-'''
+''', '\${resourceAudience}', resourceAudience), '\${dataPlaneUrl}', dataPlaneUrl), '\${collection}', collection), '\${paramName}', paramName), '\${field}', field)
 
 resource machineApi 'Microsoft.ApiManagement/service/apis@2023-03-01-preview' = {
   parent: apim

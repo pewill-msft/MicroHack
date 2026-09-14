@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
 Runs once per subscription before any deploy-lab.ps1 run starts.
